@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cálculo de PI — Método de Monte Carlo</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-card: #131a2a;
+    --bg-card-2: #1a2332;
+    --border: #243049;
+    --border-strong: #324361;
+    --text: #e8eef5;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --teal: #14b8a6;
+    --teal-bright: #2dd4bf;
+    --teal-dim: #0d8a7e;
+    --green: #10b981;
+    --red: #f43f5e;
+    --t1: #14b8a6;
+    --t2: #f59e0b;
+    --t3: #a78bfa;
+    --t4: #ec4899;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(20, 184, 166, 0.12), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+    padding: 32px 20px 80px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+
+  header {
+    text-align: center;
+    padding: 24px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  header .eyebrow {
+    color: var(--teal);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 38px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header p {
+    color: var(--text-muted);
+    margin: 14px auto 0;
+    max-width: 720px;
+    font-size: 16px;
+  }
+
+  section { margin-bottom: 56px; }
+  .section-title {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 8px;
+  }
+  .section-title .num {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: rgba(20, 184, 166, 0.12);
+    border: 1px solid rgba(20, 184, 166, 0.35);
+    color: var(--teal-bright);
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .section-title h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .section-subtitle {
+    color: var(--text-muted);
+    margin: 0 0 24px 44px;
+    font-size: 15px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #0f1424;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 14.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+    position: relative;
+  }
+  .code-block::before {
+    content: 'formula.py';
+    position: absolute;
+    top: 8px; right: 16px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+  .kw { color: #f472b6; }
+  .fn { color: #5eead4; }
+  .num-lit { color: #bef264; }
+  .pn { color: #f59e0b; }
+  .var { color: #e8eef5; }
+  .comment { color: #64748b; font-style: italic; }
+
+  /* SEQUENTIAL */
+  .seq-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 20px;
+  }
+  @media (max-width: 1000px) {
+    .seq-grid { grid-template-columns: 1fr; }
+  }
+
+  .canvas-wrap {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  canvas { display: block; border-radius: 6px; }
+
+  .stats-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .stat {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat .label {
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .stat .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .stat.highlight {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.15), rgba(20, 184, 166, 0.05));
+    border-color: rgba(20, 184, 166, 0.4);
+  }
+  .stat.highlight .value { color: var(--teal-bright); font-size: 26px; }
+  .stat .sub {
+    color: var(--text-dim);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+  }
+
+  .controls {
+    margin-top: 18px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  button {
+    background: var(--teal);
+    color: #04151a;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  button:hover { background: var(--teal-bright); transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+  }
+  button.secondary:hover { background: var(--bg-card-2); border-color: var(--teal); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .speed-control {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text-muted); font-size: 13px;
+  }
+  .speed-control input[type=range] {
+    accent-color: var(--teal);
+    width: 140px;
+  }
+
+  /* CONVERGENCE */
+  .convergence-card {
+    margin-top: 20px;
+  }
+  .convergence-card h3 {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .convergence-card p {
+    margin: 0 0 16px 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* THREADS */
+  .threads-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 900px) {
+    .threads-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .thread-card {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .thread-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent, var(--teal));
+  }
+  .thread-card[data-tid="0"] { --accent: var(--t1); }
+  .thread-card[data-tid="1"] { --accent: var(--t2); }
+  .thread-card[data-tid="2"] { --accent: var(--t3); }
+  .thread-card[data-tid="3"] { --accent: var(--t4); }
+
+  .thread-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .thread-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent, var(--teal));
+    font-weight: 600;
+  }
+  .thread-status {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+  }
+  .thread-status.running {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  .thread-status.done {
+    color: var(--green);
+    background: rgba(16, 185, 129, 0.15);
+  }
+  .thread-mini-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+  }
+  .thread-mini-stats div span {
+    display: block;
+    color: var(--text-dim);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+  .thread-mini-stats div b {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .progress-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .progress-bar > div {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.1s linear;
+  }
+
+  .combined-result {
+    background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(20, 184, 166, 0.02));
+    border: 1px solid rgba(20, 184, 166, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 20px;
+    align-items: center;
+  }
+  @media (max-width: 800px) {
+    .combined-result { grid-template-columns: 1fr 1fr; }
+  }
+  .combined-result .stat-big .label {
+    color: var(--text-muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+  .combined-result .stat-big .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .combined-result .stat-big.pi .value {
+    color: var(--teal-bright);
+    font-size: 32px;
+  }
+
+  .speedup-info {
+    margin-top: 20px;
+    padding: 18px 20px;
+    background: var(--bg-card-2);
+    border: 1px dashed var(--border-strong);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .speedup-info b { color: var(--text); }
+  .speedup-info code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(20, 184, 166, 0.12);
+    color: var(--teal-bright);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  .thread-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .thread-controls label {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-muted); font-size: 13px;
+  }
+  .thread-controls select, .thread-controls input[type=number] {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  /* INTRO BLURB */
+  .intro {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) {
+    .intro { grid-template-columns: 1fr; }
+  }
+  .intro p { margin: 0 0 10px 0; color: var(--text-muted); font-size: 15px; }
+  .intro p:last-child { margin-bottom: 0; }
+  .intro b { color: var(--text); }
+  .intro .formula-display {
+    text-align: center;
+    align-self: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .intro .formula-display .big-eq {
+    font-size: 28px;
+    color: var(--teal-bright);
+    margin-bottom: 8px;
+  }
+  .intro .formula-display .small-eq {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .legend {
+    display: flex; gap: 16px;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .legend span { display: flex; align-items: center; gap: 6px; }
+  .legend .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="eyebrow">Sistemas Distribuídos · Computação Paralela</div>
+    <h1>Cálculo de π pelo Método de Monte Carlo</h1>
+    <p>Simulação visual da estimativa de π através de amostragem aleatória, e demonstração da divisão de trabalho entre threads.</p>
+  </header>
+
+  <div class="intro">
+    <div>
+      <p><b>A ideia:</b> Geramos pontos aleatórios dentro do quadrado unitário [0,1] × [0,1]. Um ponto está dentro do quarto de círculo de raio 1 quando x² + y² ≤ 1.</p>
+      <p>A razão entre <b>pontos dentro do círculo</b> e <b>total de pontos</b> tende a π/4. Logo, multiplicando por 4 obtemos uma estimativa de π.</p>
+      <p>Quanto maior o número de pontos amostrados, mais próxima a estimativa fica do valor real. É um cálculo facilmente <b>paralelizável</b>: cada thread amostra pontos independentemente.</p>
+    </div>
+    <div class="formula-display">
+      <div class="big-eq">π ≈ 4 · (N<sub>dentro</sub> / N<sub>total</sub>)</div>
+      <div class="small-eq">razão entre pontos dentro do círculo e o total amostrado</div>
+    </div>
+  </div>
+
+  <!-- FORMULA -->
+  <section>
+    <div class="section-title">
+      <div class="num">01</div>
+      <h2>Fórmula utilizada</h2>
+    </div>
+    <p class="section-subtitle">Trecho central do algoritmo, executado para cada amostra aleatória.</p>
+    <div class="code-block">
+<span class="var">x, y</span> = <span class="fn">random</span>.<span class="fn">random</span><span class="pn">()</span>, <span class="fn">random</span>.<span class="fn">random</span><span class="pn">()</span>
+<span class="var">distancia_ao_centro</span> = <span class="var">x</span>**<span class="num-lit">2</span> + <span class="var">y</span>**<span class="num-lit">2</span>
+<span class="kw">if</span> <span class="var">distancia_ao_centro</span> &lt;= <span class="num-lit">1</span>:
+    <span class="var">pontos_dentro_do_circulo</span> += <span class="num-lit">1</span>
+    </div>
+  </section>
+
+  <!-- SEQUENTIAL -->
+  <section>
+    <div class="section-title">
+      <div class="num">02</div>
+      <h2>Simulação sequencial</h2>
+    </div>
+    <p class="section-subtitle">Pontos amostrados um por um. Verde quando dentro do círculo, vermelho quando fora.</p>
+
+    <div class="seq-grid">
+      <div class="canvas-wrap">
+        <canvas id="seqCanvas" width="520" height="520"></canvas>
+        <div class="legend">
+          <span><span class="dot" style="background:#10b981"></span> dentro do círculo</span>
+          <span><span class="dot" style="background:#f43f5e"></span> fora do círculo</span>
+          <span><span class="dot" style="background:#14b8a6"></span> arco x² + y² = 1</span>
+        </div>
+      </div>
+
+      <div class="stats-panel">
+        <div class="stat">
+          <div class="label">Pontos totais</div>
+          <div class="value" id="seqTotal">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Dentro do círculo</div>
+          <div class="value" id="seqInside">0</div>
+          <div class="sub" id="seqRatio">0,0000</div>
+        </div>
+        <div class="stat highlight">
+          <div class="label">Estimativa de π</div>
+          <div class="value" id="seqPi">—</div>
+          <div class="sub" id="seqError">erro: —</div>
+        </div>
+        <div class="stat">
+          <div class="label">π real</div>
+          <div class="value" style="color: var(--text-muted)">3.14159265</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="seqStart">▶ Iniciar</button>
+      <button id="seqPause" class="secondary" disabled>❚❚ Pausar</button>
+      <button id="seqReset" class="secondary">↺ Reiniciar</button>
+      <div class="speed-control">
+        <span>Velocidade:</span>
+        <input type="range" id="seqSpeed" min="1" max="500" value="100">
+        <span id="seqSpeedLabel">100 pts/frame</span>
+      </div>
+    </div>
+
+    <div class="card convergence-card">
+      <h3>Convergência da estimativa</h3>
+      <p>Conforme o número de pontos cresce, a estimativa se aproxima de π (linha tracejada teal).</p>
+      <canvas id="convCanvas" width="1200" height="240" style="width:100%;height:240px"></canvas>
+    </div>
+  </section>
+
+  <!-- THREADS -->
+  <section>
+    <div class="section-title">
+      <div class="num">03</div>
+      <h2>Divisão entre threads</h2>
+    </div>
+    <p class="section-subtitle">O total de pontos é dividido entre N threads que processam em paralelo. Os resultados parciais são agregados.</p>
+
+    <div class="thread-controls">
+      <label>
+        Threads:
+        <select id="numThreads">
+          <option value="2">2</option>
+          <option value="4" selected>4</option>
+          <option value="8">8</option>
+        </select>
+      </label>
+      <label>
+        Total de pontos:
+        <select id="totalPoints">
+          <option value="40000">40.000</option>
+          <option value="100000" selected>100.000</option>
+          <option value="400000">400.000</option>
+          <option value="1000000">1.000.000</option>
+        </select>
+      </label>
+      <button id="threadsStart">▶ Iniciar threads</button>
+      <button id="threadsReset" class="secondary">↺ Reiniciar</button>
+    </div>
+
+    <div class="threads-grid" id="threadsGrid"></div>
+
+    <div class="combined-result">
+      <div class="stat-big">
+        <div class="label">Pontos processados</div>
+        <div class="value" id="combTotal">0</div>
+      </div>
+      <div class="stat-big">
+        <div class="label">Dentro do círculo</div>
+        <div class="value" id="combInside">0</div>
+      </div>
+      <div class="stat-big pi">
+        <div class="label">π combinado</div>
+        <div class="value" id="combPi">—</div>
+      </div>
+      <div class="stat-big">
+        <div class="label">Erro absoluto</div>
+        <div class="value" id="combError">—</div>
+      </div>
+    </div>
+
+    <div class="speedup-info">
+      <b>Conceito de speedup:</b> Em hardware com múltiplos núcleos, dividir N pontos entre <code>k</code> threads pode reduzir o tempo total para aproximadamente <code>T / k</code>. Cada thread amostra <code>N / k</code> pontos independentemente, sem necessidade de comunicação entre elas durante o processamento — apenas a soma final dos contadores precisa ser sincronizada (operação trivial).
+      <br><br>
+      <b>Por que paraleliza tão bem?</b> Cada amostragem é independente, sem dependência de dados, sem estado compartilhado durante o cálculo. É um caso clássico de problema <b>embaraçosamente paralelo</b> (<i>embarrassingly parallel</i>).
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ====================================================
+   PARTE 1 — SIMULAÇÃO SEQUENCIAL
+   ==================================================== */
+
+const seqCanvas = document.getElementById('seqCanvas');
+const sctx = seqCanvas.getContext('2d');
+const SEQ_SIZE = 520;
+const SEQ_PAD_L = 50;
+const SEQ_PAD_T = 30;
+const SEQ_PAD_R = 30;
+const SEQ_PAD_B = 50;
+const SEQ_PLOT = SEQ_SIZE - SEQ_PAD_L - SEQ_PAD_R;
+
+let seqTotal = 0;
+let seqInside = 0;
+let seqRunning = false;
+let seqAnimId = null;
+let seqSpeed = 100;
+let convergencePoints = [];
+
+function drawSeqAxes() {
+  sctx.fillStyle = '#0f1424';
+  sctx.fillRect(0, 0, SEQ_SIZE, SEQ_SIZE);
+
+  const x0 = SEQ_PAD_L;
+  const y0 = SEQ_PAD_T + SEQ_PLOT;
+
+  // grid
+  sctx.strokeStyle = 'rgba(148,163,184,0.08)';
+  sctx.lineWidth = 1;
+  for (let i = 1; i < 10; i++) {
+    const off = (SEQ_PLOT * i) / 10;
+    sctx.beginPath();
+    sctx.moveTo(x0 + off, SEQ_PAD_T);
+    sctx.lineTo(x0 + off, y0);
+    sctx.stroke();
+    sctx.beginPath();
+    sctx.moveTo(x0, y0 - off);
+    sctx.lineTo(x0 + SEQ_PLOT, y0 - off);
+    sctx.stroke();
+  }
+
+  // square area outline
+  sctx.strokeStyle = '#324361';
+  sctx.lineWidth = 1.5;
+  sctx.strokeRect(x0, SEQ_PAD_T, SEQ_PLOT, SEQ_PLOT);
+
+  // quarter circle (filled subtle)
+  sctx.fillStyle = 'rgba(20, 184, 166, 0.05)';
+  sctx.beginPath();
+  sctx.moveTo(x0, y0);
+  sctx.arc(x0, y0, SEQ_PLOT, -Math.PI / 2, 0);
+  sctx.closePath();
+  sctx.fill();
+
+  // quarter circle arc
+  sctx.strokeStyle = '#14b8a6';
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  sctx.arc(x0, y0, SEQ_PLOT, -Math.PI / 2, 0);
+  sctx.stroke();
+
+  // axes
+  sctx.strokeStyle = '#94a3b8';
+  sctx.lineWidth = 1.5;
+  sctx.beginPath();
+  sctx.moveTo(x0, y0);
+  sctx.lineTo(x0 + SEQ_PLOT + 8, y0);
+  sctx.moveTo(x0, y0);
+  sctx.lineTo(x0, SEQ_PAD_T - 8);
+  sctx.stroke();
+
+  // arrows
+  sctx.fillStyle = '#94a3b8';
+  sctx.beginPath();
+  sctx.moveTo(x0 + SEQ_PLOT + 8, y0);
+  sctx.lineTo(x0 + SEQ_PLOT + 2, y0 - 4);
+  sctx.lineTo(x0 + SEQ_PLOT + 2, y0 + 4);
+  sctx.closePath();
+  sctx.fill();
+  sctx.beginPath();
+  sctx.moveTo(x0, SEQ_PAD_T - 8);
+  sctx.lineTo(x0 - 4, SEQ_PAD_T - 2);
+  sctx.lineTo(x0 + 4, SEQ_PAD_T - 2);
+  sctx.closePath();
+  sctx.fill();
+
+  // labels
+  sctx.fillStyle = '#cbd5e1';
+  sctx.font = '13px JetBrains Mono, monospace';
+  sctx.textAlign = 'center';
+  sctx.fillText('0', x0, y0 + 22);
+  sctx.fillText('1', x0 + SEQ_PLOT, y0 + 22);
+  sctx.textAlign = 'right';
+  sctx.fillText('1', x0 - 8, SEQ_PAD_T + 4);
+  sctx.fillText('0', x0 - 8, y0 + 4);
+
+  sctx.textAlign = 'center';
+  sctx.fillStyle = '#94a3b8';
+  sctx.font = 'italic 14px Inter, sans-serif';
+  sctx.fillText('x', x0 + SEQ_PLOT + 22, y0 + 4);
+  sctx.fillText('y', x0 - 4, SEQ_PAD_T - 14);
+
+  // arc label
+  sctx.fillStyle = '#2dd4bf';
+  sctx.font = '12px JetBrains Mono, monospace';
+  sctx.textAlign = 'left';
+  sctx.fillText('x² + y² = 1', x0 + SEQ_PLOT * 0.55, SEQ_PAD_T + SEQ_PLOT * 0.30);
+}
+
+function plotPoint(x, y, inside) {
+  const px = SEQ_PAD_L + x * SEQ_PLOT;
+  const py = SEQ_PAD_T + SEQ_PLOT - y * SEQ_PLOT;
+  sctx.fillStyle = inside ? 'rgba(16, 185, 129, 0.85)' : 'rgba(244, 63, 94, 0.85)';
+  sctx.beginPath();
+  sctx.arc(px, py, 1.6, 0, Math.PI * 2);
+  sctx.fill();
+}
+
+function seqStep() {
+  for (let i = 0; i < seqSpeed; i++) {
+    const x = Math.random();
+    const y = Math.random();
+    const distSq = x * x + y * y;
+    const inside = distSq <= 1;
+    seqTotal++;
+    if (inside) seqInside++;
+    plotPoint(x, y, inside);
+  }
+  updateSeqStats();
+  // record convergence sample every iteration of frames
+  const piEst = (4 * seqInside) / seqTotal;
+  convergencePoints.push({ n: seqTotal, pi: piEst });
+  if (convergencePoints.length > 800) convergencePoints.shift();
+  drawConvergence();
+}
+
+function updateSeqStats() {
+  document.getElementById('seqTotal').textContent = seqTotal.toLocaleString('pt-BR');
+  document.getElementById('seqInside').textContent = seqInside.toLocaleString('pt-BR');
+  if (seqTotal > 0) {
+    const ratio = seqInside / seqTotal;
+    const pi = 4 * ratio;
+    const err = Math.abs(pi - Math.PI);
+    document.getElementById('seqRatio').textContent = 'razão: ' + ratio.toFixed(4);
+    document.getElementById('seqPi').textContent = pi.toFixed(6);
+    document.getElementById('seqError').textContent = 'erro: ' + err.toFixed(6);
+  } else {
+    document.getElementById('seqRatio').textContent = '0,0000';
+    document.getElementById('seqPi').textContent = '—';
+    document.getElementById('seqError').textContent = 'erro: —';
+  }
+}
+
+function seqLoop() {
+  if (!seqRunning) return;
+  seqStep();
+  seqAnimId = requestAnimationFrame(seqLoop);
+}
+
+document.getElementById('seqStart').addEventListener('click', () => {
+  if (seqRunning) return;
+  seqRunning = true;
+  document.getElementById('seqStart').disabled = true;
+  document.getElementById('seqPause').disabled = false;
+  seqLoop();
+});
+document.getElementById('seqPause').addEventListener('click', () => {
+  seqRunning = false;
+  document.getElementById('seqStart').disabled = false;
+  document.getElementById('seqPause').disabled = true;
+  if (seqAnimId) cancelAnimationFrame(seqAnimId);
+});
+document.getElementById('seqReset').addEventListener('click', () => {
+  seqRunning = false;
+  if (seqAnimId) cancelAnimationFrame(seqAnimId);
+  seqTotal = 0; seqInside = 0;
+  convergencePoints = [];
+  drawSeqAxes();
+  updateSeqStats();
+  drawConvergence();
+  document.getElementById('seqStart').disabled = false;
+  document.getElementById('seqPause').disabled = true;
+});
+document.getElementById('seqSpeed').addEventListener('input', (e) => {
+  seqSpeed = +e.target.value;
+  document.getElementById('seqSpeedLabel').textContent = seqSpeed + ' pts/frame';
+});
+
+/* ====================================================
+   GRÁFICO DE CONVERGÊNCIA
+   ==================================================== */
+
+const convCanvas = document.getElementById('convCanvas');
+const cctx = convCanvas.getContext('2d');
+
+function drawConvergence() {
+  const W = convCanvas.width;
+  const H = convCanvas.height;
+  cctx.fillStyle = '#0f1424';
+  cctx.fillRect(0, 0, W, H);
+
+  const padL = 60, padR = 20, padT = 24, padB = 36;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  // y-axis range: [PI - 0.6, PI + 0.6]
+  const yMin = Math.PI - 0.7;
+  const yMax = Math.PI + 0.7;
+
+  // grid
+  cctx.strokeStyle = 'rgba(148,163,184,0.08)';
+  cctx.lineWidth = 1;
+  for (let i = 1; i < 6; i++) {
+    const y = padT + (plotH * i) / 6;
+    cctx.beginPath();
+    cctx.moveTo(padL, y);
+    cctx.lineTo(padL + plotW, y);
+    cctx.stroke();
+  }
+
+  // PI reference line
+  const piY = padT + plotH * (1 - (Math.PI - yMin) / (yMax - yMin));
+  cctx.strokeStyle = '#14b8a6';
+  cctx.setLineDash([6, 6]);
+  cctx.lineWidth = 1.5;
+  cctx.beginPath();
+  cctx.moveTo(padL, piY);
+  cctx.lineTo(padL + plotW, piY);
+  cctx.stroke();
+  cctx.setLineDash([]);
+
+  // axes
+  cctx.strokeStyle = '#324361';
+  cctx.lineWidth = 1.5;
+  cctx.beginPath();
+  cctx.moveTo(padL, padT);
+  cctx.lineTo(padL, padT + plotH);
+  cctx.lineTo(padL + plotW, padT + plotH);
+  cctx.stroke();
+
+  // labels
+  cctx.fillStyle = '#94a3b8';
+  cctx.font = '11px JetBrains Mono, monospace';
+  cctx.textAlign = 'right';
+  cctx.fillText(yMax.toFixed(2), padL - 8, padT + 4);
+  cctx.fillText(Math.PI.toFixed(4), padL - 8, piY + 4);
+  cctx.fillStyle = '#2dd4bf';
+  cctx.fillText('π', padL - 8 - 50, piY + 4);
+  cctx.fillStyle = '#94a3b8';
+  cctx.fillText(yMin.toFixed(2), padL - 8, padT + plotH + 4);
+
+  cctx.textAlign = 'center';
+  cctx.fillText('número de pontos amostrados →', padL + plotW / 2, H - 10);
+  cctx.save();
+  cctx.translate(16, padT + plotH / 2);
+  cctx.rotate(-Math.PI / 2);
+  cctx.fillText('estimativa de π', 0, 0);
+  cctx.restore();
+
+  if (convergencePoints.length < 2) return;
+
+  // convergence line
+  const maxN = convergencePoints[convergencePoints.length - 1].n;
+  const minN = convergencePoints[0].n;
+
+  cctx.strokeStyle = '#fbbf24';
+  cctx.lineWidth = 1.6;
+  cctx.beginPath();
+  for (let i = 0; i < convergencePoints.length; i++) {
+    const p = convergencePoints[i];
+    const xRatio = maxN === minN ? 0 : (p.n - minN) / (maxN - minN);
+    const x = padL + xRatio * plotW;
+    const yClamped = Math.max(yMin, Math.min(yMax, p.pi));
+    const y = padT + plotH * (1 - (yClamped - yMin) / (yMax - yMin));
+    if (i === 0) cctx.moveTo(x, y);
+    else cctx.lineTo(x, y);
+  }
+  cctx.stroke();
+
+  // x-axis labels
+  cctx.fillStyle = '#64748b';
+  cctx.font = '10px JetBrains Mono, monospace';
+  cctx.textAlign = 'left';
+  cctx.fillText(minN.toLocaleString('pt-BR'), padL, padT + plotH + 16);
+  cctx.textAlign = 'right';
+  cctx.fillText(maxN.toLocaleString('pt-BR'), padL + plotW, padT + plotH + 16);
+
+  // current value badge
+  const last = convergencePoints[convergencePoints.length - 1];
+  cctx.fillStyle = 'rgba(251, 191, 36, 0.15)';
+  cctx.fillRect(padL + plotW - 130, padT + 8, 120, 28);
+  cctx.fillStyle = '#fbbf24';
+  cctx.font = 'bold 13px JetBrains Mono, monospace';
+  cctx.textAlign = 'right';
+  cctx.fillText('π ≈ ' + last.pi.toFixed(5), padL + plotW - 16, padT + 27);
+}
+
+drawSeqAxes();
+updateSeqStats();
+drawConvergence();
+
+/* ====================================================
+   PARTE 2 — THREADS
+   ==================================================== */
+
+const threadsGrid = document.getElementById('threadsGrid');
+let threads = [];
+let threadsRunning = false;
+
+function buildThreads(num) {
+  threadsGrid.innerHTML = '';
+  threadsGrid.style.gridTemplateColumns = `repeat(${Math.min(num, 4)}, 1fr)`;
+  threads = [];
+  for (let i = 0; i < num; i++) {
+    const card = document.createElement('div');
+    card.className = 'thread-card';
+    card.dataset.tid = i % 4;
+    card.innerHTML = `
+      <div class="thread-head">
+        <span class="thread-label">Thread ${i}</span>
+        <span class="thread-status" id="ts-${i}">aguardando</span>
+      </div>
+      <canvas id="tc-${i}" width="220" height="220" style="width:100%;aspect-ratio:1/1"></canvas>
+      <div class="progress-bar"><div id="tp-${i}"></div></div>
+      <div class="thread-mini-stats">
+        <div><span>Pontos</span><b id="tn-${i}">0</b></div>
+        <div><span>Dentro</span><b id="ti-${i}">0</b></div>
+      </div>
+    `;
+    threadsGrid.appendChild(card);
+
+    const canvas = card.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+    drawThreadAxes(ctx, canvas.width, canvas.height, i);
+
+    threads.push({
+      id: i,
+      ctx, canvas,
+      total: 0, inside: 0,
+      assigned: 0,
+      done: false,
+      colors: ['#14b8a6', '#f59e0b', '#a78bfa', '#ec4899'][i % 4]
+    });
+  }
+}
+
+function drawThreadAxes(ctx, w, h, tid) {
+  const colors = ['#14b8a6', '#f59e0b', '#a78bfa', '#ec4899'];
+  const accent = colors[tid % 4];
+  ctx.fillStyle = '#0f1424';
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = 14;
+  const plot = w - pad * 2;
+  const x0 = pad;
+  const y0 = pad + plot;
+
+  // square outline
+  ctx.strokeStyle = '#243049';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0, pad, plot, plot);
+
+  // quarter circle (filled subtle)
+  ctx.fillStyle = `${accent}10`;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.arc(x0, y0, plot, -Math.PI / 2, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // arc
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x0, y0, plot, -Math.PI / 2, 0);
+  ctx.stroke();
+}
+
+function plotThreadPoint(t, x, y, inside) {
+  const w = t.canvas.width;
+  const pad = 14;
+  const plot = w - pad * 2;
+  const px = pad + x * plot;
+  const py = pad + plot - y * plot;
+  t.ctx.fillStyle = inside ? 'rgba(16, 185, 129, 0.85)' : 'rgba(244, 63, 94, 0.75)';
+  t.ctx.beginPath();
+  t.ctx.arc(px, py, 1.2, 0, Math.PI * 2);
+  t.ctx.fill();
+}
+
+function startThreads() {
+  if (threadsRunning) return;
+  const num = +document.getElementById('numThreads').value;
+  const total = +document.getElementById('totalPoints').value;
+  buildThreads(num);
+  const perThread = Math.floor(total / num);
+  threads.forEach(t => { t.assigned = perThread; });
+
+  threadsRunning = true;
+  document.getElementById('threadsStart').disabled = true;
+
+  // simulate concurrency: each thread gets its own setInterval
+  // batch size scaled by total to keep UI responsive
+  const batch = Math.max(50, Math.floor(perThread / 200));
+
+  threads.forEach((t) => {
+    document.getElementById(`ts-${t.id}`).textContent = 'rodando';
+    document.getElementById(`ts-${t.id}`).classList.add('running');
+
+    t.timer = setInterval(() => {
+      // tiny random jitter to make it look more like real concurrent threads
+      const thisBatch = Math.min(batch + Math.floor(Math.random() * 20) - 10, t.assigned - t.total);
+      const realBatch = Math.max(1, thisBatch);
+      for (let i = 0; i < realBatch && t.total < t.assigned; i++) {
+        const x = Math.random();
+        const y = Math.random();
+        const inside = x * x + y * y <= 1;
+        t.total++;
+        if (inside) t.inside++;
+        // plot a fraction of points to keep it visually clean for big N
+        if (t.assigned <= 40000 || (t.total % Math.ceil(t.assigned / 5000) === 0)) {
+          plotThreadPoint(t, x, y, inside);
+        }
+      }
+      document.getElementById(`tn-${t.id}`).textContent = t.total.toLocaleString('pt-BR');
+      document.getElementById(`ti-${t.id}`).textContent = t.inside.toLocaleString('pt-BR');
+      document.getElementById(`tp-${t.id}`).style.width = ((t.total / t.assigned) * 100) + '%';
+      updateCombined();
+
+      if (t.total >= t.assigned) {
+        clearInterval(t.timer);
+        t.done = true;
+        const status = document.getElementById(`ts-${t.id}`);
+        status.textContent = 'concluído';
+        status.classList.remove('running');
+        status.classList.add('done');
+        if (threads.every(x => x.done)) {
+          threadsRunning = false;
+          document.getElementById('threadsStart').disabled = false;
+        }
+      }
+    }, 16);
+  });
+}
+
+function updateCombined() {
+  const total = threads.reduce((s, t) => s + t.total, 0);
+  const inside = threads.reduce((s, t) => s + t.inside, 0);
+  document.getElementById('combTotal').textContent = total.toLocaleString('pt-BR');
+  document.getElementById('combInside').textContent = inside.toLocaleString('pt-BR');
+  if (total > 0) {
+    const pi = (4 * inside) / total;
+    document.getElementById('combPi').textContent = pi.toFixed(6);
+    document.getElementById('combError').textContent = Math.abs(pi - Math.PI).toFixed(6);
+  } else {
+    document.getElementById('combPi').textContent = '—';
+    document.getElementById('combError').textContent = '—';
+  }
+}
+
+function resetThreads() {
+  threads.forEach(t => { if (t.timer) clearInterval(t.timer); });
+  threadsRunning = false;
+  document.getElementById('threadsStart').disabled = false;
+  buildThreads(+document.getElementById('numThreads').value);
+  updateCombined();
+}
+
+document.getElementById('threadsStart').addEventListener('click', startThreads);
+document.getElementById('threadsReset').addEventListener('click', resetThreads);
+document.getElementById('numThreads').addEventListener('change', () => {
+  if (!threadsRunning) buildThreads(+document.getElementById('numThreads').value);
+});
+
+buildThreads(4);
+updateCombined();
+</script>
+</body>
+</html>
